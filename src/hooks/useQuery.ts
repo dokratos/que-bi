@@ -3,7 +3,7 @@
 import { useCallback, useContext, useEffect, useState } from "react";
 import request from "axios";
 
-import type { DatabaseError, QueryResult } from "pg";
+import type { DatabaseError, QueryErrorResult, QueryResult } from "pg";
 import { Query } from "@prisma/client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { QueryContext } from "@/contexts/queryContext";
@@ -12,6 +12,7 @@ export type QueryWithResult = {
   run?: {
     result?: QueryResult;
     success: boolean;
+    error?: QueryErrorResult;
   };
   error?: DatabaseError;
 } & Query;
@@ -61,7 +62,7 @@ export const useQuery = (id: string) => {
 
   const sortQueryBy = useCallback(
     (property: string) => {
-      if (!query || !query.run || !query.run.result) return;
+      if (!query || !query.run || (!query.run.result && !query.run.error)) return;
 
       setOrderBy(property);
       let newParams = new URLSearchParams(params);
@@ -72,24 +73,37 @@ export const useQuery = (id: string) => {
       setOrder(newOrder);
       newParams.set("order", newOrder);
 
-      setQuery({
-        ...query,
-        run: {
-          ...query.run,
-          result: {
-            ...query.run.result,
-            rows:
-              newOrder === "desc"
-                ? query.run.result?.rows.sort((a, b) =>
-                    b[property] < a[property] ? -1 : 1,
-                  ) || []
-                : query.run.result?.rows.sort((a, b) =>
-                    a[property] < b[property] ? -1 : 1,
-                  ) || [],
+      if (query.run.result) {
+        setQuery({
+          ...query,
+          run: {
+            ...query.run, 
+            result: {
+              ...query.run.result,
+              rows:
+                newOrder === "desc"
+                  ? query.run.result?.rows.sort((a, b) =>
+                      b[property] < a[property] ? -1 : 1,
+                    ) || []
+                  : query.run.result?.rows.sort((a, b) =>
+                      a[property] < b[property] ? -1 : 1,
+                    ) || [],
+            },
           },
-        },
-      });
+        })
+      }
 
+      if (query.run.error) {
+        setQuery({
+          ...query,
+          run: {
+            ...query.run,
+            error: {
+              ...query.run.error
+            }
+          }
+        })
+      }
       setParams(newParams);
     },
     [query, params, orderBy, order, setQuery, setParams, setOrder, setOrderBy],

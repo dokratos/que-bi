@@ -1,4 +1,4 @@
-import { QueryResult, DatabaseError } from "pg";
+import { QueryResult, DatabaseError, QueryErrorResult } from "pg";
 import createReadDatabasePool from "../read-database";
 import {
   QueryParams,
@@ -15,7 +15,7 @@ export const runQuery = async (params: QueryParams) => {
   console.log("parsed", query);
 
   try {
-    const result: QueryResult = await pool.query(query);
+    const result: QueryResult | QueryErrorResult = await pool.query(query);
     pool.end();
     return { success: true, result };
   } catch (error: any) {
